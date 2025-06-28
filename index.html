@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nearby Explorer - Discover Local Places</title>
+  <meta name="description" content="Find nearby shops, restaurants, services and more with Nearby Explorer">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="/manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .hero-gradient {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    }
+    .business-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- App Header -->
+  <header class="hero-gradient text-white shadow-md">
+    <div class="container mx-auto px-4 py-6">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/208ee729-d716-49e5-96e3-011b9d81c00c.png" alt="Nearby Explorer logo - A map pin with a magnifying glass" class="h-10 w-10 rounded-full">
+          <h1 class="text-2xl font-bold">Nearby Explorer</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button id="authBtn" class="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-100 transition">Sign In</button>
+          <button id="pointsDisplay" class="px-3 py-1 bg-yellow-400 text-gray-800 rounded-full text-sm font-bold hidden">
+            <i class="fas fa-coins mr-1"></i> <span id="pointsValue">0</span> pts
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-8">
+    <!-- Search Section -->
+    <section class="mb-12">
+      <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">What are you looking for nearby?</h2>
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="flex-1 relative">
+            <input type="text" id="searchInput" placeholder="E.g. coffee shops, temples, free food" 
+              class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div id="suggestions" class="hidden absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200"></div>
+          </div>
+          <button id="locationBtn" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition flex items-center justify-center">
+            <i class="fas fa-location-arrow mr-2"></i> Use My Location
+          </button>
+        </div>
+        <div id="locationInfo" class="mt-2 text-sm text-gray-500 hidden">
+          <i class="fas fa-map-marker-alt"></i> Searching near: <span id="locationText"></span>
+          <button id="changeLocationBtn" class="ml-2 text-blue-600 hover:underline">Change</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="mb-12 hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-gray-800">Results</h2>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm text-gray-500">Sort by:</span>
+          <select id="sortSelect" class="px-3 py-1 text-sm border border-gray-300 rounded-lg">
+            <option value="distance">Distance</option>
+            <option value="rating">Rating</option>
+            <option value="newest">Newest</option>
+          </select>
+        </div>
+      </div>
+      
+      <div id="resultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Business cards will be dynamically inserted here -->
+      </div>
+      
+      <div id="noResults" class="text-center py-12 hidden">
+        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/1dea3ed8-a554-45e4-bab5-c374147cc4a6.png" alt="Illustration of a person looking at a map with a sad face - no results found" class="mx-auto mb-4 rounded-lg">
+        <h3 class="text-xl font-medium text-gray-700 mb-2">No results found</h3>
+        <p class="text-gray-500 mb-4">Try adjusting your search or location to find what you're looking for.</p>
+        <button id="addBusinessBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+          Add a Business to Our Map
+        </button>
+      </div>
+    </section>
+
+    <!-- Registration Section -->
+    <section id="registrationSection" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">Register Your Business</h2>
+      <form id="businessRegistrationForm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label for="businessName" class="block text-sm font-medium text-gray-700 mb-1">Business Name*</label>
+            <input type="text" id="businessName" required 
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label for="businessType" class="block text-sm font-medium text-gray-700 mb-1">Business Type*</label>
+            <select id="businessType" required 
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Select a type</option>
+              <option value="restaurant">Restaurant/Café</option>
+              <option value="shop">Retail Shop</option>
+              <option value="service">Service Provider</option>
+              <option value="temple">Temple/Religious Place</option>
+              <option value="public">Public Facility</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label for="businessDescription" class="block text-sm font-medium text-gray-700 mb-1">Description*</label>
+            <textarea id="businessDescription" rows="3" required 
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+          <div class="md:col-span-2">
+            <label for="businessLocation" class="block text-sm font-medium text-gray-700 mb-1">Location*</label>
+            <input type="text" id="businessLocation" required 
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label for="businessCoverage" class="block text-sm font-medium text-gray-700 mb-1">Service Area (km)*</label>
+            <input type="number" id="businessCoverage" min="1" value="5" 
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <div class="flex items-center">
+              <label for="businessPhoto" class="block text-sm font-medium text-gray-700 mb-1">Business Photo</label>
+              <span class="ml-2 text-xs text-gray-500">(Optional)</span>
+            </div>
+            <input type="file" id="businessPhoto" accept="image/*" 
+              class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          </div>
+        </div>
+        
+        <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+          <button type="button" id="cancelRegistrationBtn" class="px-6 py-2 text-gray-600 font-medium hover:text-gray-800 transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+            Register Business (+25 pts)
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Feedback Section -->
+    <section id="feedbackSection" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">Share Your Feedback</h2>
+      <form id="feedbackForm">
+        <div class="mb-6">
+          <label for="feedbackType" class="block text-sm font-medium text-gray-700 mb-1">Feedback Type*</label>
+          <select id="feedbackType" required 
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select feedback type</option>
+            <option value="suggestion">Suggestion</option>
+            <option value="bug">Bug Report</option>
+            <option value="compliment">Compliment</option>
+            <option value="general">General Feedback</option>
+          </select>
+        </div>
+        <div class="mb-6">
+          <label for="feedbackMessage" class="block text-sm font-medium text-gray-700 mb-1">Your Feedback*</label>
+          <textarea id="feedbackMessage" rows="4" required 
+            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            placeholder="What do you like about Nearby Explorer? What can we improve?"></textarea>
+        </div>
+        <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+          <button type="button" id="cancelFeedbackBtn" class="px-6 py-2 text-gray-600 font-medium hover:text-gray-800 transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+            Submit Feedback (+10 pts)
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden">
+    <div class="flex justify-around items-center py-3">
+      <button id="navSearchBtn" class="flex flex-col items-center text-blue-600">
+        <i class="fas fa-search text-xl"></i>
+        <span class="text-xs mt-1">Search</span>
+      </button>
+      <button id="navAddBtn" class="flex flex-col items-center text-gray-500">
+        <i class="fas fa-plus-circle text-xl"></i>
+        <span class="text-xs mt-1">Add</span>
+      </button>
+      <button id="navFeedbackBtn" class="flex flex-col items-center text-gray-500">
+        <i class="fas fa-comment-alt text-xl"></i>
+        <span class="text-xs mt-1">Feedback</span>
+      </button>
+      <button id="navAccountBtn" class="flex flex-col items-center text-gray-500">
+        <i class="fas fa-user text-xl"></i>
+        <span class="text-xs mt-1">Account</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg max-w-md w-full mx-4">
+      <div class="p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-6">Sign in to Nearby Explorer</h3>
+        <div class="space-y-4">
+          <button class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+            <i class="fab fa-google mr-2"></i> Continue with Google
+          </button>
+          <button class="w-full px-4 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition">
+            <i class="fab fa-github mr-2"></i> Continue with GitHub
+          </button>
+          <div class="flex items-center my-4">
+            <div class="flex-1 border-t border-gray-300"></div>
+            <div class="px-2 text-gray-500">or</div>
+            <div class="flex-1 border-t border-gray-300"></div>
+          </div>
+          <input type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg border border-gray-300">
+          <input type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg border border-gray-300">
+          <button class="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition">
+            Sign In
+          </button>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 rounded-b-lg text-center">
+        <p class="text-sm text-gray-600">Don't have an account? <button id="showRegisterBtn" class="text-blue-600 hover:underline">Create one</button></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Toast -->
+  <div id="successToast" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 hidden">
+    <div class="flex items-center">
+      <i class="fas fa-check-circle mr-2"></i>
+      <p id="toastMessage">Operation completed successfully</p>
+      <button id="closeToastBtn" class="ml-4">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- PWA Install Prompt -->
+  <div id="installPrompt" class="fixed bottom-20 left-0 right-0 mx-4 bg-white p-4 rounded-lg shadow-xl border border-gray-200 hidden">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/e041627d-404b-4158-b6a4-434fc00b0b1b.png" alt="Nearby Explorer app icon" class="h-10 w-10 mr-3">
+        <div>
+          <p class="font-medium text-gray-800">Install Nearby Explorer</p>
+          <p class="text-sm text-gray-500">Get the full app experience</p>
+        </div>
+      </div>
+      <button id="installBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Install</button>
+    </div>
+  </div>
+
+  <script>
+    // Mock data - Replace with real API calls in production
+    const mockBusinesses = [
+      {
+        id: 1,
+        name: "Sunrise Café",
+        type: "restaurant",
+        description: "Cozy café serving specialty coffee and fresh pastries. Vegan options available.",
+        location: "123 Main St",
+        distance: 0.5,
+        rating: 4.5,
+        photo: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/8baf6239-7fbc-42c4-862f-bbeb0eb66226.png",
+        alt: "Interior of a cozy café with wooden tables and a barista making coffee"
+      },
+      {
+        id: 2,
+        name: "Green Leaf Temple",
+        type: "temple",
+        description: "Peaceful Buddhist temple open for meditation and teachings. All are welcome.",
+        location: "456 Peace Ave",
+        distance: 1.2,
+        rating: 4.8,
+        photo: "https://placehold.co/600x400",
+        alt: "Serene Buddhist temple with golden statue and lotus decorations"
+      },
+      {
+        id: 3,
+        name: "Urban Thrift",
+        type: "shop",
+        description: "Second-hand clothing and furniture at great prices. Helping reduce waste!",
+        location: "789 Market Rd",
+        distance: 2.1,
+        rating: 4.2,
+        photo: "https://placehold.co/600x400",
+        alt: "Vintage clothing store with neatly arranged second-hand items on racks"
+      }
+    ];
+
+    // DOM Elements
+    const searchInput = document.getElementById('searchInput');
+    const locationBtn = document.getElementById('locationBtn');
+    const locationInfo = document.getElementById('locationInfo');
+    const locationText = document.getElementById('locationText');
+    const changeLocationBtn = document.getElementById('changeLocationBtn');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const noResults = document.getElementById('noResults');
+    const addBusinessBtn = document.getElementById('addBusinessBtn');
+    const registrationSection = document.getElementById('registrationSection');
+    const businessRegistrationForm = document.getElementById('businessRegistrationForm');
+    const cancelRegistrationBtn = document.getElementById('cancelRegistrationBtn');
+    const feedbackSection = document.getElementById('feedbackSection');
+    const feedbackForm = document.getElementById('feedbackForm');
+    const cancelFeedbackBtn = document.getElementById('cancelFeedbackBtn');
+    const authBtn = document.getElementById('authBtn');
+    const authModal = document.getElementById('authModal');
+    const showRegisterBtn = document.getElementById('showRegisterBtn');
+    const successToast = document.getElementById('successToast');
+    const toastMessage = document.getElementById('toastMessage');
+    const closeToastBtn = document.getElementById('closeToastBtn');
+    const pointsDisplay = document.getElementById('pointsDisplay');
+    const pointsValue = document.getElementById('pointsValue');
+    const sortSelect = document.getElementById('sortSelect');
+    const navSearchBtn = document.getElementById('navSearchBtn');
+    const navAddBtn = document.getElementById('navAddBtn');
+    const navFeedbackBtn = document.getElementById('navFeedbackBtn');
+    const navAccountBtn = document.getElementById('navAccountBtn');
+    const installPrompt = document.getElementById('installPrompt');
+    const installBtn = document.getElementById('installBtn');
+
+    // App State
+    let currentLocation = null;
+    let userPoints = 0;
+    let deferredPrompt = null;
+
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', function() {
+      setupEventListeners();
+      checkAuthStatus();
+      
+      // Check if PWA is already installed
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('Running in standalone mode');
+      } else {
+        // Show install prompt when available
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt = e;
+          installPrompt.classList.remove('hidden');
+        });
+      }
+    });
+
+    function setupEventListeners() {
+      // Location handling
+      locationBtn.addEventListener('click', getCurrentLocation);
+      changeLocationBtn.addEventListener('click', () => {
+        locationInfo.classList.add('hidden');
+        currentLocation = null;
+      });
+
+      // Search functionality
+      searchInput.addEventListener('input', showSuggestions);
+      searchInput.addEventListener('focus', showSuggestions);
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#searchInput') && !e.target.closest('#suggestions')) {
+          document.getElementById('suggestions').classList.add('hidden');
+        }
+      });
+
+      // Business registration
+      addBusinessBtn.addEventListener('click', showRegistrationForm);
+      cancelRegistrationBtn.addEventListener('click', hideRegistrationForm);
+      businessRegistrationForm.addEventListener('submit', submitBusinessRegistration);
+
+      // Feedback
+      navFeedbackBtn.addEventListener('click', showFeedbackForm);
+      cancelFeedbackBtn.addEventListener('click', hideFeedbackForm);
+      feedbackForm.addEventListener('submit', submitFeedback);
+
+      // Navigation
+      navSearchBtn.addEventListener('click', scrollToSearch);
+      navAddBtn.addEventListener('click', showRegistrationForm);
+      navAccountBtn.addEventListener('click', showAuthModal);
+
+      // Authentication
+      authBtn.addEventListener('click', showAuthModal);
+      showRegisterBtn.addEventListener('click', () => {
+        toastMessage.textContent = "Registration feature coming soon!";
+        showToast();
+      });
+      authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) {
+          hideAuthModal();
+        }
+      });
+
+      // Toast
+      closeToastBtn.addEventListener('click', hideToast);
+
+      // Sorting
+      sortSelect.addEventListener('change', sortResults);
+
+      // PWA Install
+      installBtn.addEventListener('click', installPWA);
+    }
+
+    function checkAuthStatus() {
+      // Mock function - replace with real auth check
+      const isLoggedIn = false; // Change to true to test logged in state
+      
+      if (isLoggedIn) {
+        authBtn.textContent = "My Account";
+        userPoints = 125; // Mock points
+        pointsDisplay.classList.remove('hidden');
+        pointsValue.textContent = userPoints;
+      } else {
+        authBtn.textContent = "Sign In";
+        pointsDisplay.classList.add('hidden');
+      }
+    }
+
+    function getCurrentLocation() {
+      if (navigator.geolocation) {
+        locationBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Locating...';
+        
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            currentLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            
+            // Reverse geocode would go here - using mock data for now
+            locationText.textContent = "Near your current location";
+            locationInfo.classList.remove('hidden');
+            locationBtn.innerHTML = '<i class="fas fa-location-arrow mr-2"></i> Use My Location';
+            
+            // Perform search with current location
+            performSearch(searchInput.value);
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            locationBtn.innerHTML = '<i class="fas fa-location-arrow mr-2"></i> Use My Location';
+            
+            switch(error.code) {
+              case error.PERMISSION_DENIED:
+                showError("Location permission denied. Please enable location services in your browser settings.");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                showError("Location information is unavailable.");
+                break;
+              case error.TIMEOUT:
+                showError("The request to get user location timed out.");
+                break;
+              default:
+                showError("An unknown error occurred while getting your location.");
+            }
+          }
+        );
+      } else {
+        showError("Geolocation is not supported by your browser.");
+      }
+    }
+
+    function showError(message) {
+      toastMessage.textContent = message;
+      showToast();
+    }
+
+    function showSuggestions() {
+      const input = searchInput.value.toLowerCase();
+      const suggestionsEl = document.getElementById('suggestions');
+      
+      if (input.length === 0) {
+        suggestionsEl.classList.add('hidden');
+        return;
+      }
+      
+      const suggestions = [
+        "coffee shops",
+        "restaurants",
+        "temple",
+        "free food",
+        "water fountains",
+        "grocery stores",
+        "pharmacies",
+        "ATMs",
+        "parks"
+      ].filter(item => item.includes(input));
+      
+      if (suggestions.length > 0) {
+        suggestionsEl.innerHTML = suggestions.map(item => `
+          <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">${item}</div>
+        `).join('');
+        
+        suggestionsEl.classList.remove('hidden');
+        
+        // Add click handlers to suggestions
+        document.querySelectorAll('#suggestions div').forEach(item => {
+          item.addEventListener('click', () => {
+            searchInput.value = item.textContent;
+            suggestionsEl.classList.add('hidden');
+            if (currentLocation) {
+              performSearch(item.textContent);
+            }
+          });
+        });
+      } else {
+        suggestionsEl.classList.add('hidden');
+      }
+    }
+
+    function performSearch(query) {
+      if (!query || !currentLocation) return;
+      
+      // Simulate API call with mock data
+      setTimeout(() => {
+        const filtered = mockBusinesses.filter(business => 
+          business.name.toLowerCase().includes(query.toLowerCase()) || 
+          business.type === query.toLowerCase() ||
+          business.description.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        displayResults(filtered);
+      }, 500);
+    }
+
+    function displayResults(businesses) {
+      resultsContainer.innerHTML = '';
+      
+      if (businesses.length === 0) {
+        resultsSection.classList.remove('hidden');
+        noResults.classList.remove('hidden');
+        return;
+      }
+      
+      noResults.classList.add('hidden');
+      
+      businesses.forEach(business => {
+        const businessCard = document.createElement('div');
+        businessCard.className = 'business-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-transform duration-200';
+        businessCard.innerHTML = `
+          <img src="${business.photo}" alt="${business.alt}" class="w-full h-48 object-cover">
+          <div class="p-6">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">${business.name}</h3>
+                <span class="inline-block px-2 py-1 text-xs rounded-full ${getTypeBadgeClass(business.type)}">
+                  ${formatType(business.type)}
+                </span>
+              </div>
+              <div class="flex items-center bg-blue-50 px-2 py-1 rounded-lg">
+                <i class="fas fa-star text-yellow-400 mr-1"></i>
+                <span class="font-medium">${business.rating}</span>
+              </div>
+            </div>
+            <p class="text-gray-600 mt-3 mb-4">${business.description}</p>
+            <div class="flex justify-between items-center text-sm">
+              <div class="text-gray-500">
+                <i class="fas fa-map-marker-alt mr-1"></i> ${business.distance} km
+              </div>
+              <button class="text-blue-600 font-medium hover:underline">Details</button>
+            </div>
+          </div>
+        `;
+        resultsContainer.appendChild(businessCard);
+      });
+      
+      resultsSection.classList.remove('hidden');
+      scrollToResults();
+    }
+
+    function getTypeBadgeClass(type) {
+      switch(type) {
+        case 'restaurant': return 'bg-red-100 text-red-800';
+        case 'shop': return 'bg-purple-100 text-purple-800';
+        case 'temple': return 'bg-yellow-100 text-yellow-800';
+        case 'service': return 'bg-green-100 text-green-800';
+        default: return 'bg-blue-100 text-blue-800';
+      }
+    }
+
+    function formatType(type) {
+      return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+
+    function sortResults() {
+      const sortBy = sortSelect.value;
+      const businesses = Array.from(resultsContainer.children).map(el => ({
+        element: el,
+        distance: parseFloat(el.querySelector('.text-gray-500').textContent.split(' ')[1]),
+        rating: parseFloat(el.querySelector('.font-medium').textContent)
+      }));
+      
+      businesses.sort((a, b) => {
+        if (sortBy === 'distance') return a.distance - b.distance;
+        if (sortBy === 'rating') return b.rating - a.rating;
+        return 0; // For newest, we'd need timestamps in the data
+      });
+      
+      resultsContainer.innerHTML = '';
+      businesses.forEach(item => resultsContainer.appendChild(item.element));
+    }
+
+    function showRegistrationForm() {
+      hideFeedbackForm();
+      registrationSection.classList.remove('hidden');
+      registrationSection.scrollIntoView({ behavior: 'smooth' });
+      updateNavActive('navAddBtn');
+    }
+
+    function hideRegistrationForm() {
+      registrationSection.classList.add('hidden');
+      businessRegistrationForm.reset();
+    }
+
+    function submitBusinessRegistration(e) {
+      e.preventDefault();
+      
+      // Form validation
+      const name = document.getElementById('businessName').value;
+      const type = document.getElementById('businessType').value;
+      const description = document.getElementById('businessDescription').value;
+      const location = document.getElementById('businessLocation').value;
+      
+      if (!name || !type || !description || !location) {
+        showError("Please fill in all required fields");
+        return;
+      }
+      
+      // Simulate API call
+      setTimeout(() => {
+        hideRegistrationForm();
+        
+        // Add points for registration
+        if (pointsDisplay.classList.contains('hidden')) {
+          pointsDisplay.classList.remove('hidden');
+        }
+        userPoints += 25;
+        pointsValue.textContent = userPoints;
+        
+        toastMessage.textContent = "Business registered successfully! Thank you for contributing.";
+        showToast();
+      }, 1000);
+    }
+
+    function showFeedbackForm() {
+      hideRegistrationForm();
+      feedbackSection.classList.remove('hidden');
+      feedbackSection.scrollIntoView({ behavior: 'smooth' });
+      updateNavActive('navFeedbackBtn');
+    }
+
+    function hideFeedbackForm() {
+      feedbackSection.classList.add('hidden');
+      feedbackForm.reset();
+    }
+
+    function submitFeedback(e) {
+      e.preventDefault();
+      
+      const type = document.getElementById('feedbackType').value;
+      const message = document.getElementById('feedbackMessage').value;
+      
+      if (!type || !message) {
+        showError("Please fill in all fields");
+        return;
+      }
+      
+      // Simulate API call
+      setTimeout(() => {
+        hideFeedbackForm();
+        
+        // Add points for feedback
+        if (pointsDisplay.classList.contains('hidden')) {
+          pointsDisplay.classList.remove('hidden');
+        }
+        userPoints += 10;
+        pointsValue.textContent = userPoints;
+        
+        toastMessage.textContent = "Thank you for your feedback! We appreciate your input.";
+        showToast();
+      }, 1000);
+    }
+
+    function showAuthModal() {
+      authModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function hideAuthModal() {
+      authModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    function showToast() {
+      successToast.classList.remove('hidden');
+      successToast.classList.remove('translate-x-full');
+      setTimeout(hideToast, 5000);
+    }
+
+    function hideToast() {
+      successToast.classList.add('translate-x-full');
+      setTimeout(() => successToast.classList.add('hidden'), 300);
+    }
+
+    function scrollToSearch() {
+      const searchSection = document.querySelector('section.mb-12');
+      searchSection.scrollIntoView({ behavior: 'smooth' });
+      updateNavActive('navSearchBtn');
+      searchInput.focus();
+    }
+
+    function scrollToResults() {
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function updateNavActive(activeBtnId) {
+      [navSearchBtn, navAddBtn, navFeedbackBtn, navAccountBtn].forEach(btn => {
+        if (btn.id === activeBtnId) {
+          btn.classList.remove('text-gray-500');
+          btn.classList.add('text-blue-600');
+        } else {
+          btn.classList.remove('text-blue-600');
+          btn.classList.add('text-gray-500');
+        }
+      });
+    }
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+            installPrompt.classList.add('hidden');
+          }
+          deferredPrompt = null;
+        });
+      }
+    }
+  </script>
+</body>
+</html>
+
